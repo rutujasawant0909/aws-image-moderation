@@ -1,0 +1,45 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Smart Image Moderation System using Rekognition + SNS
+
+Resources:
+  ImageModerationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: image-moderation-lambda
+      Runtime: python3.9
+      Handler: handler.lambda_handler
+      CodeUri: .
+      MemorySize: 256
+      Timeout: 10
+      Policies:
+        - S3FullAccessPolicy:
+            BucketName: Ref IncomingBucket
+        - RekognitionDetectOnlyPolicy: {}
+        - SNSPublishMessagePolicy:
+            TopicName: moderation-alert-topic
+      Environment:
+        Variables:
+          SAFE_BUCKET: !Ref SafeBucket
+          SNS_TOPIC_ARN: !Ref AlertTopic
+      Events:
+        S3ImageUpload:
+          Type: S3
+          Properties:
+            Bucket: !Ref IncomingBucket
+            Events: s3:ObjectCreated:*
+
+  IncomingBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: incoming-images-moderation
+
+  SafeBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: safe-images-moderation
+
+  AlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: moderation-alert-topic
